@@ -1,55 +1,51 @@
+const http = require('http');
+const readline = require('readline');
 const fs = require('fs');
 const { MongoClient } = require('mongodb');
 
-const filePath = 'companies.csv';
+const filePath = 'companies-1.csv'; // Change this to your CSV file path
+const connectionString = 'mongodb+srv://abdi:1@Abdi6057@companies.jyfn4ka.mongodb.net/Companies?retryWrites=true&w=majority';
+
 const dbName = 'Companies'; // Your database name
-const collectionName = 'Companies'; // Your collection name
+const collectionName = 'companies'; // Your collection name
 
-// MongoDB connection URL with authentication
-const mongoURL = 'mongodb://abdi:1%40Abdi6057@localhost:27017/?authSource=admin';
-
-// Reading the CSV file line by line
-fs.readFile(filePath, 'utf8', (err, data) => {
+// Create a MongoDB client
+MongoClient.connect(connectionString, { useUnifiedTopology: true }, (err, client) => {
   if (err) {
-    console.error(err);
+    console.log("Connection err: " + err);
     return;
   }
 
-  const lines = data.split('\n');
-  const documents = [];
+  const db = client.db(dbName);
+  const collection = db.collection(collectionName);
 
-  lines.forEach((line) => {
+  var myFile = readline.createInterface({
+    input: fs.createReadStream(filePath)
+  });
+
+  myFile.on('line', function (line) {
     const [companyName, stockTicker, stockPrice] = line.split(',');
 
-    const companyDocument = {
+    // Create a new document to be inserted into the collection
+    const newData = {
       companyName,
       stockTicker,
-      stockPrice: parseFloat(stockPrice),
+      stockPrice: parseFloat(stockPrice) // Assuming stockPrice is a number in the CSV
     };
 
-    documents.push(companyDocument);
-  });
-
-  // Connect to MongoDB with authentication
-  MongoClient.connect(mongoURL, { useNewUrlParser: true, useUnifiedTopology: true }, (err, client) => {
-    if (err) {
-      console.error('Error connecting to MongoDB:', err);
-      return;
-    }
-
-    const db = client.db(dbName);
-    const collection = db.collection(collectionName);
-
-    // Insert the documents into the collection
-    collection.insertMany(documents, (err, result) => {
+    // Insert the new document into the collection
+    collection.insertOne(newData, function(err, res) {
       if (err) {
-        console.error('Error inserting documents:', err);
+        console.error("can't insert document", err);
       } else {
-        console.log(`${result.insertedCount} documents inserted successfully.`);
+        console.log("Documented inserted", newData);
       }
-
-      // Close the connection
-      client.close();
     });
   });
+
+  // Close the MongoDB connection after all insertions are done
+  client.close();
 });
+
+
+
